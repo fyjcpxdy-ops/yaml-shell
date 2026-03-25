@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cephfs-test-pod2
+spec:
+  containers:
+  - name: test-container
+    image: busybox
+    command: ["/bin/sh", "-c", "tail -f /data/shared.txt"]  # 读取共享文件
+    volumeMounts:
+    - name: cephfs-volume
+      mountPath: /data
+  volumes:
+  - name: cephfs-volume
+    persistentVolumeClaim:
+      claimName: cephfs-test-pvc

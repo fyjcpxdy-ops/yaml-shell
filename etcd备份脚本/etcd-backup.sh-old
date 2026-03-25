@@ -1,0 +1,126 @@
+#!/bin/bash
+
+# 检查是否以root用户运行（移至脚本最开始）
+if [ "$(whoami)" != "root" ]; then
+    echo "[$(date +%Y%m%d_%H%M%S)] 错误：必须以root用户运行此脚本！" 
+    exit 1
+fi
+
+# 确保日志目录和文件存在
+if [ ! -d "/var/log/backup" ]; then
+    echo "目录 /var/log/backup 不存在，正在创建..."
+    mkdir -p "/var/log/backup"
+    if [ $? -eq 0 ]; then
+        echo "目录 /var/log/backup 创建成功" | tee -a /var/log/backup/messages
+    else
+        echo "[$(date +%Y%m%d_%H%M%S)] 错误：目录 /var/log/backup 创建失败" 
+        exit 1
+    fi
+fi
+
+if [ ! -f "/var/log/backup/messages" ]; then
+    echo "文件 /var/log/backup/messages 不存在，正在创建..."
+    touch "/var/log/backup/messages"
+    if [ $? -eq 0 ]; then
+        echo "文件 /var/log/backup/messages 创建成功" | tee -a /var/log/backup/messages
+    else
+        echo "[$(date +%Y%m%d_%H%M%S)] 错误：文件 /var/log/backup/messages 创建失败" 
+        exit 1
+    fi
+fi
+
+# 检查依赖命令是否存在
+if ! command -v etcdctl &> /dev/null; then
+    echo "[$(date +%Y%m%d_%H%M%S)] 错误：etcdctl 命令未找到，请先安装etcdctl" | tee -a /var/log/backup/messages
+    exit 1
+fi
+
+# 定义目标目录路径（统一变量名）
+BACKUP_DIR="/opt/etcd-backups"
+
+if [ ! -d "$BACKUP_DIR" ]; then
+    echo "目录 $BACKUP_DIR 不存在，正在创建..." | tee -a /var/log/backup/messages
+    # 使用mkdir -p确保父目录不存在时也能创建，且目录已存在时不报错
+    mkdir -p "$BACKUP_DIR"
+    
+    # 检查目录创建是否成功
+    if [ $? -eq 0 ]; then
+        echo "目录 $BACKUP_DIR 创建成功" | tee -a /var/log/backup/messages
+    else
+        echo "[$(date +%Y%m%d_%H%M%S)] 错误：目录 $BACKUP_DIR 创建失败" | tee -a /var/log/backup/messages
+        exit 1  # 创建失败时退出脚本，避免后续操作出错
+    fi
+else
+    echo "目录 $BACKUP_DIR 已存在，无需创建" | tee -a /var/log/backup/messages
+fi
+
+# 配置etcd连接参数变量
+ETCD_ENDPOINTS="https://127.0.0.1:2379"
+ETCD_CACERT="/etc/kubernetes/pki/etcd/ca.crt"
+ETCD_CERT="/etc/kubernetes/pki/apiserver-etcd-client.crt"
+ETCD_KEY="/etc/kubernetes/pki/apiserver-etcd-client.key"
+
+# 备份文件路径变量
+BACKUP_FILE="${BACKUP_DIR}/etcd-snapshot-$(date +%Y%m%d_%H%M%S).db"
+
+# 执行备份操作
+echo "[$(date +%Y%m%d_%H%M%S)] 开始执行etcd备份..." | tee -a /var/log/backup/messages
+etcdctl --endpoints="${ETCD_ENDPOINTS}" \
+  --cacert="${ETCD_CACERT}" \
+  --cert="${ETCD_CERT}" \
+  --key="${ETCD_KEY}" \
+  snapshot save "${BACKUP_FILE}"
+
+# 检查备份结果
+if [ $? -eq 0 ]; then
+    echo "[$(date +%Y%m%d_%H%M%S)] 备份成功，文件路径：${BACKUP_FILE}" | tee -a /var/log/backup/messages
+else
+    echo "[$(date +%Y%m%d_%H%M%S)] 错误：etcd备份失败" | tee -a /var/log/backup/messages
+    exit 1
+fi
+
+# 清理30天前的备份文件
+echo "[$(date +%Y%m%d_%H%M%S)] 开始清理30天前的备份文件..." | tee -a /var/log/backup/messages
+ago=$(date -d "-30 day" +%Y%m%d)
+
+# 使用find安全遍历文件，仅匹配目标格式
+find "$BACKUP_DIR" -maxdepth 1 -type f -name "etcd-snapshot-*.db" | while read -r file; do
+    # 提取文件名中的日期
+    datestamp=$(echo "$(basename "$file")" | sed -n 's/etcd-snapshot-\([0-9]\{8\}\)_[0-9]\{6\}\.db/\1/p')
+    if [ -n "$datestamp" ]; then
+        # 比较日期，删除旧文件
+        if [ "$datestamp" -lt "$ago" ]; then
+            rm -f "$file"
+            echo "[$(date +%Y%m%d_%H%M%S)] 已删除旧备份：$file" | tee -a /var/log/backup/messages
+        fi
+    fi
+done
+
+echo "[$(date +%Y%m%d_%H%M%S)] 备份及清理操作完成" | tee -a /var/log/backup/messages
+
+# 添加脚本到计划任务（每天凌晨2点执行）
+echo "[$(date +%Y%m%d_%H%M%S)] 开始配置计划任务..." | tee -a /var/log/backup/messages
+
+# 获取当前脚本的绝对路径
+SCRIPT_PATH=$(readlink -f "$0")
+
+# 转义特殊字符，避免grep匹配问题
+ESCAPED_SCRIPT_PATH=$(printf '%s\n' "$SCRIPT_PATH" | sed 's/[.[\*^$()+?{|]/\\&/g')
+
+# 检查计划任务是否已存在
+if crontab -l 2>/dev/null | grep -qF "$ESCAPED_SCRIPT_PATH"; then
+    echo "[$(date +%Y%m%d_%H%M%S)] 计划任务已存在，无需重复添加" | tee -a /var/log/backup/messages
+else
+    # 添加新的计划任务（每天凌晨2点执行）
+    (crontab -l 2>/dev/null; echo "0 2 * * * $SCRIPT_PATH") | crontab -
+    
+    # 检查计划任务是否添加成功
+    if [ $? -eq 0 ]; then
+        echo "[$(date +%Y%m%d_%H%M%S)] 计划任务添加成功，每天凌晨2点自动执行备份" | tee -a /var/log/backup/messages
+    else
+        echo "[$(date +%Y%m%d_%H%M%S)] 错误：计划任务添加失败" | tee -a /var/log/backup/messages
+        exit 1
+    fi
+fi
+
+echo "[$(date +%Y%m%d_%H%M%S)] 所有操作完成" | tee -a /var/log/backup/messages

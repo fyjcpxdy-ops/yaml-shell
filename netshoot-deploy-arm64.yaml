@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netshoot
+spec:
+  selector:
+    matchLabels:
+      app: netshoot
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: netshoot
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: kubevirt1910b
+      containers:
+      - name: pod1
+        image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nicolaka/netshoot:v0.13-linuxarm64
+        imagePullPolicy: IfNotPresent
+        command: ["sleep", "3600"]

@@ -1,0 +1,152 @@
+# tdservcers.yaml - 适配DDS通信+TDengine K8s服务（修复Service冲突）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdservcers
+  namespace: default
+  labels:
+    app: tdservcers
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tdservcers
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: tdservcers
+    spec:
+      # 核心：恢复DDS必需的宿主机网络/进程/IPC
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      restartPolicy: Always
+      containers:
+      - name: tdservcers
+        image: tdservcers:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SPRING_CONFIG_LOCATION
+          value: "file:/app/config/application.properties"
+        - name: TZ
+          value: "Asia/Shanghai"
+        - name: LD_LIBRARY_PATH
+          value: "/app/native:/usr/lib64:/lib64"  # 增加系统库路径，解决native库加载
+        - name: LJDDS_LICENSE_FILE
+          value: "/app/ljddslicense.lic"
+        # 强制覆盖配置文件中的TDengine地址（优先级高于配置文件）
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:TAOS-RS://10.98.168.46:6041/monitor?timezone=Asia/Shanghai&charset=UTF-8&locale=en_US.UTF-8"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "taosdata"
+        - name: TDENGINE_ADDR
+          value: "10.98.168.46:6030"
+        # 容器端口（hostNetwork模式下映射到宿主机8080）
+        ports:
+        - name: http-8080
+          containerPort: 8080
+          hostPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - name: app-config
+          mountPath: /app/config/application.properties
+          readOnly: true
+        - name: app-license
+          mountPath: /app/ljddslicense.lic
+          readOnly: true
+        - name: native-lib
+          mountPath: /app/native
+          readOnly: true
+        - name: dev-shm
+          mountPath: /dev/shm
+          readOnly: false
+        # 核心：DDS必需的特权模式（访问宿主机设备节点）
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          privileged: true  # 必须开启，否则DDS无法访问设备节点
+          allowPrivilegeEscalation: true
+        # 健康检查（适配DDS初始化耗时）
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          failureThreshold: 5
+          timeoutSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 180
+          periodSeconds: 20
+          failureThreshold: 5
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 2Gi
+      # 存储卷配置（确保DDS native库/许可证可访问）
+      volumes:
+      - name: app-config
+        hostPath:
+          path: /home/tdserver-deploy/application-prod.properties
+          type: File
+      - name: app-license
+        hostPath:
+          path: /home/tdserver-deploy/ljddslicense.lic
+          type: File
+      - name: native-lib
+        hostPath:
+          path: /home/tdserver-deploy/native
+          type: DirectoryOrCreate
+      - name: dev-shm
+        hostPath:
+          path: /dev/shm
+          type: Directory
+      # 强制调度到TDengine所在节点
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - tdengine
+            topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+---
+# tdservcers Service（修复NodePort+clusterIP冲突）
+apiVersion: v1
+kind: Service
+metadata:
+  name: tdservcers-service
+  namespace: default
+  labels:
+    app: tdservcers
+spec:
+  type: NodePort  # 保留NodePort供外部访问
+  selector:
+    app: tdservcers
+  ports:
+  - name: app-port-8080
+    port: 8080          # Service端口
+    targetPort: 8080    # 容器端口
+    nodePort: 30080     # 宿主机映射端口
+    protocol: TCP
+  # 删除clusterIP: None，解决NodePort冲突

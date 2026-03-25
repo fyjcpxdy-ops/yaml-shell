@@ -1,0 +1,57 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ubuntu-gpu-vm
+  namespace: default
+spec:
+  running: false  # 初始为关闭状态，创建后手动启动
+  template:
+    spec:
+      # 节点亲和性：调度到有GPU的节点（替换为你的GPU节点名称）
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - kubevirt1gpu  # 你的GPU节点主机名
+
+      # 容忍节点污点（如GPU节点可能有专属污点）
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "gpu"
+          effect: "NoSchedule"
+
+      # 虚拟机硬件配置
+      domain:
+        cpu:
+          cores: 4  # 根据需求调整CPU核心数
+        memory:
+          guest: 8Gi  # 根据需求调整内存
+        devices:
+          # 磁盘配置：关联qcow2镜像
+          disks:
+            - name: ubuntu-disk  # 与volumes中的name对应
+              disk:
+                bus: virtio
+              bootOrder: 1  # 第一启动项
+
+          # 网络配置
+          interfaces:
+            - name: default
+              masquerade: {}  # 使用NAT网络
+
+      # 卷配置：关联主机上的qcow2镜像文件
+      volumes:
+        - name: ubuntu-disk  # 与disks中的name对应
+          hostDisk:
+            path: /vmhost/1/ubuntu20_04_gpu_4.qcow2  # qcow2文件在主机的绝对路径
+            type: Disk  # 必须为Disk或DiskOrCreate（根据之前的错误修正）
+
+      # 网络配置
+      networks:
+        - name: default
+          pod: {}  # 使用Pod网络

@@ -1,0 +1,63 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ubuntu-gpu-vm
+  namespace: default
+spec:
+  running: false
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - kubevirt1gpu
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "gpu"
+          effect: "NoSchedule"
+      domain:
+        cpu:
+          cores: 4
+        memory:
+          guest: 8Gi
+        devices:
+          # 磁盘配置（与consoles同级）
+          disks:
+            - name: ubuntu-disk
+              disk:
+                bus: virtio
+              bootOrder: 1
+          
+          # 网络配置（与consoles同级）
+          interfaces:
+            - name: default
+              masquerade: {}
+          
+          # 控制台配置（正确嵌套在devices下，与disks/interfaces同级）
+          consoles:
+            - type: pty
+              device:
+                driver: virtio  # 使用virtio驱动，提升性能
+              target:
+                type: serial   # 类型为串口
+                port: 0        # 端口号（固定为0即可）
+          
+          # 串行设备（增强兼容性，与consoles同级）
+          serials:
+            - type: pty
+              target:
+                port: 0
+      volumes:
+        - name: ubuntu-disk
+          hostDisk:
+            path: /vmhost/1/ubuntu20_04_gpu_4.qcow2
+            type: Disk
+      networks:
+        - name: default
+          pod: {}

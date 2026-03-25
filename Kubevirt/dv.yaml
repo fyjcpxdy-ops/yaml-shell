@@ -1,0 +1,22 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: arm64-ubuntu-test
+  namespace: default
+  annotations:
+    cdi.kubevirt.io/storage.usePopulator: "true"  # 保留Populator（旧版本也支持）
+    cdi.kubevirt.io/http.immediate: "true"       # 加速HTTP导入，避免超时
+spec:
+  # 1. 镜像源配置（不变）
+  source:
+    http:
+      url: http://192.168.0.115:8082/jammy-server-cloudimg-arm64-bak.img
+  # 2. 存储配置（关键：显式指定存储类和访问模式，与mydv一致）
+  storage:
+    storageClassName: "ceph-block"  # 复用成功的存储类，确保兼容性
+    resources:
+      requests:
+        storage: 20Gi
+    volumeMode: Block                # 保持Block模式（mydv成功验证支持）
+    accessModes:
+      - ReadWriteMany               # 与mydv的PV访问模式一致（RWX）

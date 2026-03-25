@@ -1,0 +1,59 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: npu
+  namespace: default
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1
+spec:
+  runStrategy: Manual
+  template:
+    spec:
+      #      architecture: arm64
+      domain:
+        cpu:
+          cores: 4
+   
+            #      model: cortex-a57  # 与节点CPU模型标签一致（正确）
+          sockets: 1
+          threads: 1
+            #        machine:
+          #          type: virt  # aarch64通用类型（正确）
+        devices:
+          disks:
+            - name: datavolumedisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          # 关键修正：deviceName 改为 kubevirt.yaml 中的 resourceName 值
+          hostDevices:
+            - deviceName: "huawei.com/Ascend910"  # 与 permittedHostDevices.resourceName 完全一致
+              name: npu0  # 自定义标识（不影响，仅用于区分）
+        resources:
+          requests:
+            memory: 8Gi
+          limits:
+            memory: 8Gi
+      volumes:
+        - name: datavolumedisk
+          dataVolume:
+            name: arm64-ubuntu-test  # 已确认状态为 Succeeded（正确）
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              manage_etc_hosts: true
+              hostname: npu
+              ssh_pwauth: true
+              chpasswd:
+                expire: false
+                list: |
+                  root:ubuntu
+              users:
+                - name: root
+                  lock_passwd: false
+                  sudo: ALL=(ALL) NOPASSWD:ALL
+                  shell: /bin/bash

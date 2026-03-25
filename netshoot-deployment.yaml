@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netshoot
+spec:
+  selector:
+    matchLabels:
+      app: netshoot
+  replicas: 2 
+  template:
+    metadata:
+      labels:
+        app: netshoot
+    spec:
+      containers:
+      - name: pod2
+        image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nicolaka/netshoot:v0.13
+        imagePullPolicy: IfNotPresent
+        command: ["sleep", "3600"] # 容器启动后保持运行状态
+
+
+        echo -e "\033[31m因为脚本会写到计划任务中，如果脚本路径移动请在移动后重新执行添加新任务\033[0m"
+
+
+sudo NVIDIA-Linux-x86_64-460.106.00.run \
+--override
+--no-opengl-files \  
+--disable-nouveau \  
+--dkms  

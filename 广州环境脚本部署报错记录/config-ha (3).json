@@ -1,0 +1,314 @@
+{
+  "k8s_nodes": [
+    {
+      "ip": "10.10.10.120",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "master",
+      "system": "true",
+      "taint_key": "node-role.kubernetes.io/system",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "null",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.15",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "master",
+      "system": "true",
+      "taint_key": "node-role.kubernetes.io/system",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "null",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.23",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "master",
+      "system": "true",
+      "taint_key": "node-role.kubernetes.io/system",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "null",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.52",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "system": "true",
+      "taint_key": "node-role.kubernetes.io/system",
+      "taint_effect": "NoSchedule",
+      "lb": "nginx",
+      "mysql": "null",
+      "velero": "true",
+      "prometheus": "true",
+      "minio": "true",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.147",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "system": "true",
+      "taint_key": "node-role.kubernetes.io/system",
+      "taint_effect": "NoSchedule",
+      "lb": "nginx",
+      "mysql": "null",
+      "prometheus": "true",
+      "minio": "true",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.211",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "system": "true",
+      "taint_key": "node-role.kubernetes.io/system",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "true",
+      "prometheus": "true",
+      "minio": "true",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.88",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "taint_key": "node-role.kubernetes.io/system",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "true",
+      "minio": "true",
+      "otter": "null",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.242",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "taint_key": "node-role.kubernetes.io/build",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "null",
+      "otter": "node",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.232",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "taint_key": "node-role.kubernetes.io/harbor",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "null",
+      "otter": "null",
+      "harbor-nginx": "true",
+      "harbor": "true",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.180",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "taint_key": "node-role.kubernetes.io/harbor",
+      "taint_effect": "NoSchedule",
+      "lb": "null",
+      "mysql": "null",
+      "otter": "null",
+      "harbor-nginx": "true",
+      "harbor": "true",
+      "network": "calico",
+      "machine": "virtul"
+    },
+    {
+      "ip": "10.10.10.33",
+      "user": "root",
+      "password": "Istack@123",
+      "role": "slave",
+      "network": "calico",
+      "machine": "virtul"
+    }
+  ],
+  "etcd_nodes": [
+    {
+      "ip": "10.10.10.120",
+      "user": "root",
+      "password": "Istack@123"
+    },
+    {
+      "ip": "10.10.10.15",
+      "user": "root",
+      "password": "Istack@123"
+    },
+    {
+      "ip": "10.10.10.23",
+      "user": "root",
+      "password": "Istack@123"
+    }
+  ],
+  "loadbalance_nodes": [
+    {
+      "ip": "10.10.10.52",
+      "user": "root",
+      "password": "Istack@123",
+      "interface": "enp1s0",
+      "net_id": "24",
+      "virtual_router_id": "110"
+    },
+    {
+      "ip": "10.10.10.147",
+      "user": "root",
+      "password": "Istack@123",
+      "interface": "enp1s0",
+      "net_id": "24",
+      "virtual_router_id": "110"
+    }
+  ],
+  "service_loadbalance_nodes": [
+    {
+      "ip": "10.10.10.211",
+      "user": "root",
+      "password": "Istack@123",
+      "interface": "enp1s0",
+      "net_id": "24",
+      "virtual_router_id": "120"
+    },
+    {
+      "ip": "10.10.10.88",
+      "user": "root",
+      "password": "Istack@123",
+      "interface": "enp1s0",
+      "net_id": "24",
+      "virtual_router_id": "120"
+    }
+  ],
+  "glusterfs": {
+    "clusterid": "0046a048f8ba5f98a3e4e705fd4065d2",
+    "restfulurl": "http://10.10.10.45:8080",
+    "enable": false
+  },
+  "k8s_domain_address": {
+    "address": "apiserver.hxpub1.lx2025dx1.psbc.cn",
+    "enable": true
+  },
+  "sync": {
+    "master_cluster_ingress_address": "",
+    "master_cluster_url": "",
+    "master_cluster_name": "",
+    "slave_cluster_ingress_address": "",
+    "slave_cluster_name": "",
+    "slave_cluster_url": "",
+    "master_cluster_node_ip": "",
+    "slave_cluster_node_ip": "",
+    "enable": false
+  },
+  "webapi_mysql": {
+    "address": "10.9.171.34",
+    "port": "3306",
+    "password": "123456",
+    "external": false
+  },
+  "minio": {
+    "size": "10G",
+    "url": "http://10.10.10.211:31272"
+  },
+  "harbor": {
+    "address": "harbor.hxpub1.lx2025dx1.psbc.cn",
+    "vip": "10.10.10.232",
+    "password": "Harbor12345",
+    "url": "https://harbor.hxpub1.lx2025dx1.psbc.cn:9443",
+    "domain": "harbor.hxpub1.lx2025dx1.psbc.cn",
+    "storage_class": "vg-data",
+    "pgsql_storage_class": "vg-data",
+    "ip_list": "10.10.10.232,10.10.10.180",
+    "registry_size": "50Gi",
+    "chartmuseum_size": "5Gi",
+    "database_size": "30Gi",
+    "redis_size": "5Gi",
+    "jobservice_size": "10Gi",
+    "trivy_size": "10Gi",
+    "https_port": "9443",
+    "ha": "true",
+    "pgsql_backup": "false",
+    "pgsql_password": "DC@72mon",
+    "redis_password": "DC@72mon"
+  },
+  "macvlan": {
+    "start": "",
+    "end": "",
+    "gateway": "",
+    "vlanid": "",
+    "netmask": "24",
+    "virtuleth": "ens32",
+    "physicaleth": ""
+  },
+  "ntp_install": true,
+  "k8s_vip": "10.10.10.120",
+  "k8s_vip_port": "6443",
+  "f5_address": "10.10.10.120",
+  "ingress_http_port": "9080",
+  "ingress_https_port": "9443",
+  "network_mode": "calico",
+  "calico_ipv4pool_cidr": "10.168.0.0/16",
+  "calico_ipv4pool_ipip": "Always",
+  "docker_ip_cidr": "64.64.64.1/26",
+  "service_cluster_ip_range": "10.96.0.0/12",
+  "cluster_dns": "10.96.0.10",
+  "top_master_ingress_address": "10.10.10.120",
+  "top_slave_ingress_address": "10.10.10.120",
+  "top_master_ingress_domain": "null",
+  "master_scheduler": false,
+  "build_node_names": "heb25dx1k8s1build1",
+  "ctyun": false,
+  "etcd_external": true,
+  "kube_proxy_mode": "iptables",
+  "mysql_password": "DC@72mon",
+  "redis_password": "DC@72mon",
+  "service_mesh": {
+    "monitor_type": "victoriametrics",
+    "monitor_url": "http://vmselect-victoriametrics.monitoring-vm:8481"
+  },
+  "logging": {
+    "es_version": "6",
+    "es_size": "10Gi",
+    "es_password": "DC@72mon"
+  },
+  "docker_install_path": "/runtime",
+  "kubelet_install_path": "/kubelet",
+  "etcd_install_path": "/etcd",
+  "system_reserved": {
+    "cpu": "2000m",
+    "memory": "2Gi",
+    "ephemeral_storage": "1Gi"
+  },
+  "kube_reserved": {
+    "cpu": "2000m",
+    "memory": "2Gi",
+    "ephemeral_storage": "1Gi"
+  },
+  "caas_namespaces": "kube-system,default,ingress,harbor,servicemesh,kubernetes-dashboard,caas-system,logging,harbor-system,istio-system,kube-public,eni-cni-system,keda,log-system,middleware-operator,minio,monitoring,monitoring-vm,velero,istio-operator,heimdallr-system,mystra-system,sisyphus-system,stellaris-system,vela-system,cloudmonitor,zeus,caas-terminal,onestor-csi-nfs,csi-nfs",
+  "pre_lb_vip": "10.10.10.211",
+  "zone": "pac"
+}

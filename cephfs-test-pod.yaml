@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cephfs-test-pod
+spec:
+  containers:
+  - name: test-container
+    image: busybox
+    command: ["/bin/sh", "-c", "while true; do echo $(date) >> /data/shared.txt; sleep 10; done"]
+    volumeMounts:
+    - name: cephfs-volume
+      mountPath: /data
+  volumes:
+  - name: cephfs-volume
+    persistentVolumeClaim:
+      claimName: cephfs-test-pvc

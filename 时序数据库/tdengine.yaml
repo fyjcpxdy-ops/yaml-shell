@@ -1,0 +1,140 @@
+# TDengine 3.3.6.0 (ARM64/麒麟) 部署配置
+# 适配 K8s 1.21，解决 taosadapter 配置解析 panic 问题
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdengine
+  namespace: default  # 可自定义命名空间（需提前创建：kubectl create ns tdengine）
+  labels:
+    app: tdengine
+    version: "3.3.6.0"
+    arch: aarch64
+spec:
+  replicas: 1  # 单实例（TDengine单机部署，集群需改配置）
+  selector:
+    matchLabels:
+      app: tdengine
+  strategy:
+    type: Recreate  # 避免多实例冲突，重建式更新
+  template:
+    metadata:
+      labels:
+        app: tdengine
+        version: "3.3.6.0"
+        arch: aarch64
+    spec:
+      hostname: tdengine-server  # TDengine 节点标识（必填，影响集群通信）
+      containers:
+      - name: tdengine
+        image: tdengine/tdengine-ee-aarch64:3.3.6.0  # ARM64 架构镜像
+        imagePullPolicy: IfNotPresent  # 优先使用本地镜像，避免重复拉取
+        ports:
+        - containerPort: 6030  # TDengine 核心服务端口
+        - containerPort: 6041  # taosadapter REST API 端口（关键）
+        - containerPort: 6043  # TDengine 集群管理端口
+        - containerPort: 6060  # TDengine Web 管理端口
+        - containerPort: 6040  # TDengine 订阅端口
+        # 环境变量（核心配置，避免默认值冲突）
+        env:
+        - name: TAOS_FQDN
+          value: "tdengine-server"  # 必须与 hostname 一致
+        - name: TZ
+          value: "Asia/Shanghai"    # 时区配置
+        - name: TAOS_ADAPTER_CONFIG
+          value: "/etc/taos/taosadapter.toml"  # 指定合法配置文件路径
+        # 持久化存储挂载（数据/日志/配置）
+        volumeMounts:
+        - name: tdengine-data
+          mountPath: /var/lib/taos  # TDengine 数据目录（持久化核心）
+        - name: tdengine-log
+          mountPath: /var/log/taos  # 日志目录
+        - name: tdengine-config
+          mountPath: /etc/taos      # 配置目录（含修复后的 taosadapter.toml）
+        # 健康检查（确保服务可用）
+        resources:
+          limits:
+            cpu: "2"       # 最大CPU核心数
+            memory: 4Gi    # 最大内存
+          requests:
+            cpu: "1"       # 最小CPU核心数
+            memory: 2Gi    # 最小内存
+        # 权限配置（解决目录读写权限问题）
+        securityContext:
+          runAsUser: 0     # 以 root 运行（TDengine 需读写系统目录）
+          runAsGroup: 0
+          privileged: false
+      # 初始化容器：提前修复 taosadapter.toml 配置（核心！解决 panic 问题）
+      initContainers:
+      - name: fix-taosadapter-config
+        image: tdengine/tdengine-ee-aarch64:3.3.6.0
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # 备份原有错误配置
+          mv /etc/taos/taosadapter.toml /etc/taos/taosadapter.toml.bak 2>/dev/null;
+          # 写入合法的 taosadapter 配置（无无效字符）
+          cat > /etc/taos/taosadapter.toml << 'EOF'
+          # TDengine taosadapter 3.3.6.0 合法配置
+          [core]
+          log-level = "info"
+          log-dir = "/var/log/taos"
+          [server]
+          http-port = 6041
+          bind-addr = "0.0.0.0"
+          enable-https = false
+          [taos]
+          host = "127.0.0.1"
+          port = 6030
+          username = "root"
+          password = "taosdata"
+          EOF
+          # 修复配置文件权限
+          chmod 644 /etc/taos/taosadapter.toml;
+          chown root:root /etc/taos/taosadapter.toml;
+        volumeMounts:
+        - name: tdengine-config
+          mountPath: /etc/taos
+      # 存储卷定义（hostPath 适合测试，生产建议替换为 PVC）
+      volumes:
+      - name: tdengine-data
+        hostPath:
+          path: /data/tdengine/data  # 宿主机数据目录（需提前创建）
+          type: DirectoryOrCreate    # 不存在则自动创建
+      - name: tdengine-log
+        hostPath:
+          path: /data/tdengine/log   # 宿主机日志目录
+          type: DirectoryOrCreate
+      - name: tdengine-config
+        hostPath:
+          path: /data/tdengine/config  # 宿主机配置目录
+          type: DirectoryOrCreate
+---
+# TDengine Service：暴露端口供集群内/外访问
+apiVersion: v1
+kind: Service
+metadata:
+  name: tdengine-service
+  namespace: default
+  labels:
+    app: tdengine
+spec:
+  type: NodePort  # 外网访问用 NodePort，生产可改 LoadBalancer
+  selector:
+    app: tdengine  # 匹配 Deployment 的 Pod 标签
+  ports:
+  - name: tdengine-core  # 6030 核心端口
+    port: 6030
+    targetPort: 6030
+    nodePort: 30030      # 宿主机映射端口（30000-32767 范围内）
+  - name: taosadapter-api  # 6041 REST API 端口
+    port: 6041
+    targetPort: 6041
+    nodePort: 30041
+  - name: tdengine-web  # 6060 Web 管理端口
+    port: 6060
+    targetPort: 6060
+    nodePort: 30060
+  - name: tdengine-cluster  # 6043 集群端口
+    port: 6043
+    targetPort: 6043
+    nodePort: 30043

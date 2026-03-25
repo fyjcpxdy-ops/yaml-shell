@@ -1,0 +1,82 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ubuntu20-vm
+  namespace: default
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1
+spec:
+  runStrategy: Manual
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: ubuntu20-vm
+    spec:
+      # 节点亲和性配置
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchFields:
+              - key: metadata.name
+                operator: In
+                values:
+                - kubevirt1910b
+      architecture: arm64
+      domain:
+        cpu:
+          cores: 4
+          sockets: 1
+          threads: 1
+          model: cortex-a57
+        machine:
+          type: virt-rhel9.4.0
+        devices:
+          disks:
+          - name: datavolumedisk
+            disk:
+              bus: virtio
+          - name: cloudinitdisk
+            disk:
+              bus: virtio
+          # 网络接口配置
+          interfaces:
+          - name: default
+            masquerade: {}
+          # NPU直通配置
+          hostDevices:
+          - name: npu-device
+            deviceName: huawei.com/Ascend910
+        resources:
+          requests:
+            memory: 8Gi
+            huawei.com/Ascend910: 1
+          limits:
+            memory: 8Gi
+            huawei.com/Ascend910: 1
+      # 存储卷配置
+      volumes:
+      - name: datavolumedisk
+        dataVolume:
+          name: dv-http-focal
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            manage_etc_hosts: true
+            hostname: npu
+            ssh_pwauth: true
+            chpasswd:
+              expire: false
+              list: |
+                root:ubuntu
+            users:
+              - name: root
+                lock_passwd: false
+                sudo: ALL=(ALL) NOPASSWD:ALL
+                shell: /bin/bash
+      # 网络配置（必须添加）
+      networks:
+      - name: default
+        pod: {}

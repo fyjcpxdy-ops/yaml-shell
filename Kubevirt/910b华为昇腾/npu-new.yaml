@@ -1,0 +1,116 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: npu-2  # 统一使用第二个配置的名称（可按需修改）
+  namespace: default  # 统一命名空间（按需切换为 uvm-vm-910b）
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1
+    kubevirt.io/allow-pod-bridge-network-live-migration: "true"  # 保留第一个配置的迁移支持
+    vmType: intelligence  # 保留第一个配置的虚拟机类型标注
+  labels:
+    cloud-init.kubevirt-manager.io/username: root
+    fw.kubevirt-manager.io/vm-name: npu-2
+    kubevirt-manager.io/managed: "true"
+    kubevirt.io/domain: npu-2
+spec:
+  runStrategy: Manual  # 保留第二个配置的手动运行策略（避免自动启动）
+  template:
+    metadata:
+      annotations:
+        ovn.kubernetes.io/logical_switch: ""
+      labels:
+        fw.kubevirt-manager.io/vm-name: npu-2
+        kubevirt-manager.io/managed: "true"
+        kubevirt.io/domain: npu-2
+    spec:
+      architecture: arm64  # 统一架构（两个配置一致）
+      nodeSelector:
+        kubernetes.io/hostname: "kubevirt1910b"  # 保留第二个配置的节点绑定（按需修改为实际节点名）
+      domain:
+        cpu:
+          cores: 8  # 取第一个配置的8核（按需调整为4/8核）
+          sockets: 1
+          threads: 1
+        machine:
+          type: virt  # 兼容Kubevirt 1.4+ arm64（两个配置一致）
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false  # 保留第一个配置的UEFI固件+关闭安全启动
+        memory:
+          guest: "48Gi"  # 保留第二个配置的48Gi总内存（含16Gi CMA）
+        devices:
+          disks:
+            # 存储：使用第二个配置的DataVolume（需确保数据卷arm64-ubuntu-test-2已创建并Bound）
+            - name: datavolumedisk
+              bootOrder: 1  # 设为第一启动项
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          # NPU透传：保留第二个配置的gpus字段（Kubevirt推荐方式），数量整合第一个配置的2块
+          gpus:
+            - deviceName: "huawei.com/Ascend910"
+              name: npu-6
+            - deviceName: "huawei.com/Ascend910"
+              name: npu-7
+          # 网络：保留第一个配置的Pod网络+DHCP，开启多队列
+          interfaces:
+            - bridge: {}
+              name: net1
+      networks:
+        # 网络配置：保留第一个配置的DHCP+公共DNS
+        - name: net1
+          pod: {}
+      volumes:
+        # 数据卷：使用第二个配置的DataVolume（替换第一个的PVC）
+        - name: datavolumedisk
+          dataVolume:
+            name: arm64-ubuntu-test-2  # 需提前创建该DataVolume（Bound状态）
+        # Cloud-init：融合SSH登录、CMA内存配置、sshd优化
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            # 网络配置：DHCP自动获取IP，指定DNS
+            networkData: |
+              version: 2
+              ethernets:
+                net1:
+                  dhcp4: true
+                  nameservers:
+                    addresses:
+                      - 8.8.8.8
+                      - 8.8.4.4
+            # 用户配置：整合密码、SSH、CMA内存
+            userData: |
+              #cloud-config
+              manage_etc_hosts: true
+              hostname: npu-2
+              ssh_pwauth: true  # 允许SSH密码登录
+              # 密码配置：统一使用 ubuntu（按需修改为123456）
+              chpasswd:
+                expire: false  # 密码不过期
+                list: |
+                  root:ubuntu
+              users:
+                - name: root
+                  lock_passwd: false
+                  sudo: ALL=(ALL) NOPASSWD:ALL
+                  shell: /bin/bash
+              # 核心：NPU依赖的CMA内存配置（16Gi），覆盖grub
+              write_files:
+                - path: /etc/default/grub.d/50-cloudimg-settings.cfg
+                  permissions: '0644'
+                  content: |
+                    GRUB_CMDLINE_LINUX="cma=16Gi console=ttyAMA0 console=tty1 net.ifnames=0 biosdevname=0"
+                    GRUB_RECORDFAIL_TIMEOUT=0
+                    GRUB_TIMEOUT=0
+              # 启动脚本：先优化sshd，再更新grub，最后重启生效
+              runcmd:
+                - sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+                - sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+                - systemctl restart ssh
+                - update-grub  # 应用CMA配置
+                - echo 17179869184 > /sys/kernel/mm/cma/default/reserve
+                  #     - reboot  # 重启虚拟机使配置生效

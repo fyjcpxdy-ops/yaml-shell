@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: networkpolicy-a
+  namespace: ns-a   #指定网络策略在哪个命名空间
+spec:
+  #podSelector网络策略要应用到哪个pod上,通过标签的方式来控制pod，只能应用到和网络策略相同namespace的pod
+  podSelector:
+    #如果matchLabels下面没写标签，则应用网络策略到当前namespace下的所有pod
+    matchLabels:
+      #nginx-a:把网络策略应用到标签为nginx-a的pod上
+      app: nginx-a
+  #policyTypes:启用的是入站规则还是出站规则，只有Ingress表示定义的是入站规则
+  policyTypes:
+  - Ingress
+  #ingress：入站规则
+  ingress:
+  #允许哪些客户端可以访问
+  - from:
+    #标签为netshoot-a的pod可以访问
+    - podSelector:
+        matchLabels:
+          app: netshoot-a
+    ports:
+    - protocol: TCP
+      port: 80

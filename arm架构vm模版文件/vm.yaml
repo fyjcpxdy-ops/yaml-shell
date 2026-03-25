@@ -1,0 +1,61 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1
+  finalizers:
+  - kubevirt.io/virtualMachineControllerFinalize
+  name: npu
+  namespace: default
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: npu
+    spec:
+      architecture: arm64
+      domain:
+        devices:
+          disks:
+          # 1. 原有 datavolumedisk（无错，保留）
+          - disk:
+              bus: virtio
+            name: datavolumedisk
+          # 2. 新增：对应 cloud-init 的 disk 配置（name 全小写，符合 RFC 1123）
+          - disk:
+              bus: virtio
+            name: cloudinitdisk  # 全小写，无特殊字符，解决报错
+          # NPU 直通配置（保留原内容）
+          hostDevices:
+          - deviceName: huawei.com/Ascend910
+            name: gpu6
+            tag: gpu6
+        machine:
+          type: virt
+        resources:
+          requests:
+            memory: 16Gi
+      volumes:
+      # 1. 原有 datavolumedisk（无错，保留）
+      - dataVolume:
+          name: dv-http-focal
+        name: datavolumedisk
+      # 2. 修复：给 cloud-init Volume 加合规 name（与上方 disks.name 对应）
+      - name: cloudinitdisk  # 关键修复：新增合规 name，全小写
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            manage_etc_hosts: true
+            hostname: npu
+            ssh_pwauth: true
+            chpasswd:
+              expire: false
+              list: |
+                root:ubuntu  # 根密码，建议后续修改为复杂密码
+            users:
+              - name: root
+                lock_passwd: false
+                sudo: ALL=(ALL) NOPASSWD:ALL
+                shell: /bin/bash

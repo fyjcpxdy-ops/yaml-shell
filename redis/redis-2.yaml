@@ -1,0 +1,138 @@
+# 1. PVC：关联vg-data SC，动态创建PV存储Redis数据
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data-pvc
+  namespace: default  # 可根据实际需求修改命名空间
+spec:
+  accessModes:
+    - ReadWriteOnce  # 单节点读写（Redis单实例场景够用）
+  storageClassName: vg-data  # 核心：指定使用vg-data存储类
+  resources:
+    requests:
+      storage: 10Gi  # 按需调整存储大小
+
+---
+
+# 2. ConfigMap：Redis配置文件，适配生产基础配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: default
+data:
+  redis.conf: |
+    # 基础配置
+    bind 0.0.0.0  # 允许所有IP访问（K8s内部通信需要）
+    protected-mode no  # 关闭保护模式（集群内访问）
+    port 6379
+    timeout 0
+    tcp-keepalive 300
+    
+    # 持久化配置（核心，避免数据丢失）
+    save 900 1      # 900秒内至少1个写操作触发RDB
+    save 300 10     # 300秒内至少10个写操作触发RDB
+    save 60 10000   # 60秒内至少10000个写操作触发RDB
+    appendonly yes  # 开启AOF持久化（比RDB更安全）
+    appendfsync everysec  # 每秒刷盘一次（性能+安全平衡）
+    
+    # 日志配置
+    loglevel notice
+    logfile "/var/log/redis/redis-server.log"
+    
+    # 数据目录（与Deployment挂载路径一致）
+    dir /data/redis
+    
+    # 密码认证（按需开启，替换为实际密码）
+    # requirepass "Redis@6.2.6"
+
+---
+
+# 3. Deployment：Redis 6.2.6部署（ARM架构适配）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-6.2.6
+  namespace: default
+  labels:
+    app: redis
+    version: 6.2.6
+spec:
+  replicas: 1  # 单实例部署（集群版需调整为StatefulSet）
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      # 可选：强制调度到ARM节点（若集群混布x86/ARM）
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      containers:
+      - name: redis
+        image: redis:6.2.6  # 官方多架构镜像，自动适配ARM64
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+          name: redis-port
+          protocol: TCP
+        # 资源限制（按需调整，适配ARM节点配置）
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        # 挂载配置文件和持久化存储
+        volumeMounts:
+        - name: redis-config-volume
+          mountPath: /etc/redis/  # 配置文件挂载路径
+        - name: redis-data-volume
+          mountPath: /data/redis  # 数据持久化路径（与redis.conf中dir一致）
+        - name: redis-log-volume
+          mountPath: /var/log/redis  # 日志挂载路径
+        # 启动命令：加载自定义配置文件
+        command: ["redis-server"]
+        args: ["/etc/redis/redis.conf"]
+        # 健康检查（保障容器可用性）
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      # 定义卷（关联PVC和ConfigMap）
+      volumes:
+      - name: redis-config-volume
+        configMap:
+          name: redis-config
+      - name: redis-data-volume
+        persistentVolumeClaim:
+          claimName: redis-data-pvc  # 关联上面创建的PVC（使用vg-data SC）
+      - name: redis-log-volume
+        emptyDir: {}  # 日志临时存储（若需持久化日志，可改为PVC）
+
+---
+
+# 4. Service：暴露Redis服务（集群内访问）
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: default
+spec:
+  type: ClusterIP  # 仅集群内访问，生产推荐；若需外部访问改为NodePort/LoadBalancer
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: redis-port
+    protocol: TCP
+    name: redis-port

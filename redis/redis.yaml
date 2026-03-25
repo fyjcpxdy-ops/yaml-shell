@@ -1,0 +1,149 @@
+# 1. Secret：存储Redis密码（修正Base64编码）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: default
+type: Opaque
+data:
+  # 正确编码：echo -n 'DC@72mon' | base64 = RENBQDIybW9u
+  redis-password: RENBQDIybW9u  
+
+---
+# 2. ConfigMap：Redis核心配置文件（移除环境变量引用，改为占位符）
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: default
+data:
+  redis.conf: |
+    # 基础配置
+    bind 0.0.0.0
+    protected-mode no
+    port 6379
+    daemonize no
+    pidfile /var/run/redis_6379.pid
+    timeout 0
+    tcp-keepalive 300
+
+    # 持久化配置
+    save 900 1
+    save 300 10
+    save 60 10000
+    rdbcompression yes
+    dbfilename dump.rdb
+    dir /data
+
+    # 密码认证（占位符，启动时通过shell替换）
+    requirepass __REDIS_PASSWORD__
+    masterauth __REDIS_PASSWORD__
+
+    # 日志配置
+    loglevel notice
+    logfile ""
+
+    # 最大内存配置
+    maxmemory 1G
+    maxmemory-policy volatile-lru
+
+---
+# 3. StatefulSet：Redis部署（修复挂载+环境变量解析+健康检查）
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: default
+spec:
+  serviceName: redis-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        # 明确指定ARM64兼容的镜像（alpine版本更小，适配arm64）
+        image: redis:6.2.6-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+          name: redis-port
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        # 修复：通过shell脚本替换配置文件中的密码占位符，再启动Redis
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # 替换配置文件中的占位符为真实密码
+          sed -i "s/__REDIS_PASSWORD__/$REDIS_PASSWORD/g" /etc/redis/redis.conf
+          # 启动Redis
+          redis-server /etc/redis/redis.conf
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        # 修复：健康检查通过shell解析环境变量
+        livenessProbe:
+          exec:
+            command: ["sh", "-c", "redis-cli -a $REDIS_PASSWORD ping"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command: ["sh", "-c", "redis-cli -a $REDIS_PASSWORD ping"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: redis-config-volume
+          mountPath: /etc/redis
+          readOnly: true
+        - name: redis-data-volume
+          mountPath: /data
+      # 修复：添加ConfigMap的Volume定义（关键！）
+      volumes:
+      - name: redis-config-volume
+        configMap:
+          name: redis-config
+          items:
+          - key: redis.conf
+            path: redis.conf
+  # 持久化存储配置
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data-volume
+    spec:
+      storageClassName: vg-data
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+# 4. Service：暴露Redis服务（无问题，保留）
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: default
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  clusterIP: None

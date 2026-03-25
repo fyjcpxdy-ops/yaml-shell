@@ -1,0 +1,29 @@
+apiVersion: kubevirt.io/v1
+kind: KubeVirt  # 注意：Kubevirt v1.4.0 中首字母需大写（与你的集群状态匹配）
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1
+spec:
+  imagePullPolicy: IfNotPresent
+  configuration:
+    developerConfiguration:
+      featureGates:
+        - PCIePassthrough  # PCIe直通必需（v1.4.0 需显式开启）
+        - HostDisk
+        - HotplugVolumes
+        - Snapshot
+        - HostDevices      # 主机设备直通基础（v1.4.0 需显式开启）
+        - ExternalResource
+      useEmulation: false  # 关闭软件模拟，使用KVM硬件加速
+    # 核心修正：移除不支持的 name/driver 字段，保留 v1.4.0 合法字段
+    permittedHostDevices:
+      pciHostDevices:
+        - pciVendorSelector: "19e5:d802"  # 昇腾910B正确ID（19e5=厂商，d802=设备）
+          resourceName: "huawei.com/Ascend910"  # 虚拟机需通过此名称引用设备
+          externalResourceProvider: false  # 本地设备（非外部资源）
+  # 保留原有状态中的必要配置（如证书、工作负载策略）
+  certificateRotateStrategy: {}
+  workloadUpdateStrategy: {}

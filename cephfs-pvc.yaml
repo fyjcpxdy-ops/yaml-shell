@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs-test-pvc
+spec:
+  accessModes:
+    - ReadWriteMany  # 文件系统支持多节点读写
+  storageClassName: rook-cephfs
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,77 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: npu
+  namespace: default
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: npu
+    spec:
+      # 关键修正：用节点亲和性强制绑定目标节点（替代不支持的 nodeName）
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchFields:
+              - key: metadata.name
+                operator: In
+                values:
+                - kubevirt1910b  # 你的目标节点名，必须完全一致
+      architecture: arm64
+      domain:
+        devices:
+          disks:
+          - name: datavolumedisk
+            disk:
+              bus: virtio
+          - name: cloudinitdisk
+            disk:
+              bus: virtio
+          interfaces:
+          - name: default
+            masquerade: {}
+        # 机器类型：节点明确支持的类型（节点标签有 virt-rhel9.4.0）
+        machine:
+          type: virt-rhel9.4.0
+        # CPU 模型：节点支持的基础模型（避免不兼容）
+        cpu:
+          cores: 4
+          sockets: 1
+          threads: 1
+          model: armv8-a  # 节点标签 cpu-model.node.kubevirt.io/armv8-a=true
+        resources:
+          requests:
+            memory: 16Gi
+            huawei.com/Ascend910: "1"  # 必须保留，用于分配 NPU
+          limits:
+            memory: 16Gi
+            huawei.com/Ascend910: "1"
+      volumes:
+      - name: datavolumedisk
+        dataVolume:
+          name: arm64-ubuntu  # 已确认的 arm64 架构 DV，状态 Succeeded
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            manage_etc_hosts: true
+            hostname: npu
+            ssh_pwauth: true
+            chpasswd:
+              expire: false
+              list: |
+                root:ubuntu
+            users:
+              - name: root
+                lock_passwd: false
+                sudo: ALL=(ALL) NOPASSWD:ALL
+                shell: /bin/bash
+      networks:
+      - name: default
+        pod: {}

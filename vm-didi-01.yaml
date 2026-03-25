@@ -1,0 +1,155 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  annotations:
+    createVmFormData: '{"createVm":{"newvmname":"didi-01","newvmnamespace":"uvm-single01","newVmSc":"vm-rbd2","newvmnode":"auto-select","newvmtype":"custom","newvmcpumemcores":2,"newvmcpumemmemory":4,"newvmdiskonetype":"image","newvmdiskonesc":"vm-rbd2","newvmdiskoneam":"ReadWriteOnce","newvmdiskonecm":"","newvmdiskonevalue":"","newvmdiskonesize":10,"newvmnetworkVpcone":"none","newvmnetworkone":"","newvmnetworktypeone":"masquerade","newvmnetworkoneIpType":"auto","newvmnetworktypetwo":"","newvmnetworktwo":"","newvmnetworkVpctwo":"","newvmuserdataauth":"password","newvmuserdatausername":"root","newvmuserdatapassword":"123456","newvmuserdatassh":"","newvmfirmware":"uefi","newvmsecureboot":false,"newvmnetworkoneip":["0",null,"0","0",""],"newvmnetworkoneCidr":"","newQosOpen":false,"newQosIngress":1,"newQosEgress":1,"newvmnetdataip":"","newvmnetdatanetmask":"","newvmnetdatagw":"","newvmnetdatadns1":"","newvmnetdatadns2":"","newpoolinitscript":"","newvmlabelkeyone":"","newvmlabelvalueone":"","newvmlabelkeytwo":"","newvmlabelvaluetwo":"","newvmlabelkeythree":"","newvmlabelvaluethree":"","newvmlabelkeyfour":"","newvmlabelvaluefour":"","newvmlabelkeyfive":"","newvmlabelvaluefive":"","newvmcpumemsockets":"","newvmcpumemthreads":"","newvmpriorityclass":"","newvmcloudinitip":"","newvmcloudinitnetmask":"","newvmcloudinitgw":"","newvmcloudinitdns1":"","newvmcloudinitdns2":""},"cpuListValue":"set2","intelligentEnable":false,"storageInfoList":[],"addNICList":[]}'
+    kubevirt.io/allow-pod-bridge-network-live-migration: "true"
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1alpha3
+    vm-association-create-dv: didi-01-disk1
+    vm-association-init-dv: ""
+    vmType: ordinary
+  creationTimestamp: "2025-09-02T08:26:00Z"
+  finalizers:
+  - kubevirt.io/virtualMachineControllerFinalize
+  generation: 1
+  labels:
+    cloud-init.kubevirt-manager.io/username: root
+    fw.kubevirt-manager.io/vm-name: didi-01
+    kubevirt-manager.io/managed: "true"
+    kubevirt.io/domain: didi-01
+  name: didi-01
+  namespace: uvm-single01
+  resourceVersion: "123228465"
+  uid: 871bf688-08af-4972-90b0-1150ba9686ff
+spec:
+  running: true
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        fw.kubevirt-manager.io/vm-name: didi-01
+        kubevirt-manager.io/managed: "true"
+        kubevirt.io/domain: didi-01
+    spec:
+      architecture: amd64
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+          - bootOrder: 1
+            disk:
+              bus: virtio
+            name: disk1
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+          interfaces:
+          - masquerade: {}
+            name: net1
+          networkInterfaceMultiqueue: true
+        features:
+          acpi: {}
+          smm:
+            enabled: true
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 4Gi
+      networks:
+      - name: net1
+        pod: {}
+      tolerations:
+      - effect: NoSchedule
+        key: dedicated
+        operator: Equal
+        value: ceph
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/ceph
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/es
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/lb
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/prometheus
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/system
+        operator: Exists
+      volumes:
+      - name: disk1
+        persistentVolumeClaim:
+          claimName: didi-01-disk1
+      - cloudInitNoCloud:
+          networkData: |
+            version: 2
+            ethernets:
+              net1:
+                dhcp4: true
+                nameservers:
+                  addresses:
+                  - 8.8.8.8
+                  - 8.8.4.4
+          userData: |
+            #cloud-config
+            manage_etc_hosts: true
+            hostname: didi-01
+            ssh_pwauth: true
+            runcmd:
+              - dhclient
+              - sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+              - sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+              - systemctl restart ssh
+            chpasswd:
+              expire: true
+            users:
+              - name: root
+                lock_passwd: false
+                sudo: ALL=(ALL) NOPASSWD:ALL
+                shell: /bin/bash
+                plain_text_passwd: "123456"
+        name: cloudinitdisk
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2025-09-02T08:26:14Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: null
+    message: All of the VMI's DVs are bound and not running
+    reason: AllDVsReady
+    status: "True"
+    type: DataVolumesReady
+  - lastProbeTime: null
+    lastTransitionTime: null
+    message: 'cannot migrate VMI: PVC didi-01-disk1 is not shared, live migration
+      requires that all PVCs must be shared (using ReadWriteMany access mode)'
+    reason: DisksNotLiveMigratable
+    status: "False"
+    type: LiveMigratable
+  - lastProbeTime: null
+    lastTransitionTime: null
+    status: "True"
+    type: StorageLiveMigratable
+  created: true
+  desiredGeneration: 1
+  observedGeneration: 1
+  printableStatus: Running
+  ready: true
+  runStrategy: Always
+  volumeSnapshotStatuses:
+  - enabled: true
+    name: disk1
+  - enabled: false
+    name: cloudinitdisk
+    reason: Snapshot is not supported for this volumeSource type [cloudinitdisk]
