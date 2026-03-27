@@ -1,1 +1,32 @@
-apiversion: v1
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deploymnent 
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/redis:8.0.2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        ports:
+        - containerPort: 6379

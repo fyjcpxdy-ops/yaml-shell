@@ -1,0 +1,13 @@
+{
+    // 核心：开启特效
+    "powermode.enabled": true,
+    // 特效样式（火焰/粒子/烟花都可以）
+    "powermode.presets": "flame",
+    // 🔥 关键配置：计数器位置 = 右上角
+    "powermode.comboCounter.position": "top-right",
+    // 关闭震动（不晃眼）
+    "powermode.shake.enabled": false,
+    // 开启特效
+    "powermode.explosions.enabled": true,
+    "powermode.explosions.size": 3
+}
