@@ -1,0 +1,16 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: rabbitmq  # 缩进修复：2个空格
+spec:
+  selector:       # 缩进修复：2个空格
+    app: rabbitmq # 缩进修复：selector的子项，再加2个空格
+  ports:          # 缩进修复：2个空格
+  - name: http
+    protocol: TCP  # 缩进修复：端口子项，2个空格
+    port: 15672
+    targetPort: 15672
+  - name: amqp
+    protocol: TCP
+    port: 5672
+    targetPort: 5672
