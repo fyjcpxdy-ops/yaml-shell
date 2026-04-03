@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1 # k8s >= 1.22 必须 v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/auth-realm: Please Input Your Username and Password
+    nginx.ingress.kubernetes.io/auth-secret: basic-secret
+    nginx.ingress.kubernetes.io/auth-type: basic
+  name: auth-https-ingress
+  namespace: study-ingress
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - auth.test.com
+    secretName: ca-secret
+  rules:
+  - host: auth.test.com
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80

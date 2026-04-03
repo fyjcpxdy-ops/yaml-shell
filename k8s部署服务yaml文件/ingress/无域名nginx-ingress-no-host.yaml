@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress-no-host
+  annotations:
+    # 核心：路径重写，解决404问题
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /no-host
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80

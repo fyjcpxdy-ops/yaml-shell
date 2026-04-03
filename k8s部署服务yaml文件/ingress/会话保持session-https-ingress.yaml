@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-https-ingress
+  namespace: study-ingress
+  # 所有注解 必须 缩进放在 annotations 下面！！！
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 16m
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    nginx.ingress.kubernetes.io/affinity-mode: persistent
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - nginx.test.com
+    secretName: ca-secret
+  rules:
+  - host: nginx.test.com
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
