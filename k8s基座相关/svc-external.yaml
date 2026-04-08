@@ -1,0 +1,30 @@
+# 修复后的 Service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: nginx-svc-external  # 缩进修复：属于labels子项
+  name: nginx-svc-external
+spec:
+  ports:
+  - name: http
+    port: 80                 # 缩进修复：属于ports子项
+    protocol: TCP            # 缩进修复
+    targetPort: 80           # 缩进修复
+  sessionAffinity: None
+  type: ClusterIP
+---
+# 修复后的 Endpoints
+apiVersion: v1
+kind: Endpoints
+metadata:
+  labels:
+    app: nginx-svc-external  # 缩进修复
+  name: nginx-svc-external   # 必须和Service同名！
+subsets:
+- addresses:
+  - ip: 140.205.94.189 
+  ports:
+  - name: http
+    port: 80                 # 缩进修复
+    protocol: TCP            # 缩进修复
