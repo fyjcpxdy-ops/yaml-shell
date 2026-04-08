@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-test-cm
+  labels:
+    app: nginx-test-cm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-test-cm
+  template:
+    metadata:
+      labels:
+        app: nginx-test-cm
+    spec:
+      volumes:
+      - name: conf
+        configMap:
+          name: multile-file
+          items:
+            - key: nginx.confv  #cm里面配置文件的key，也就是文件名
+              path: mysql.conf  #要将那个文件名改成什么名字，最终挂载到容器里面的文件名
+              mode: 0777
+          defaultMode: 0666
+          optional: true  #可选配置，错误不影响启动
+      - name: conf2
+        configMap:
+          name: multile-file2
+      - name: real-conf
+        configMap:
+          name: real-nginx-conf
+      containers:
+      - name: nginx-test-cm
+        image: registry.cn-beijing.aliyuncs.com/dotbalo/nginx:1.15.12
+        env:
+        - name: ENV_KEY   #容器变量
+          valueFrom:   #取值
+            configMapKeyRef:   #从configmap取值
+              name: file  #configmap名字
+              key: nginx #configmap里面的key，也就是文件名
+        envFrom:   #环境变量来源
+        - configMapRef:   #cm配置
+            name: basic-config  #cm名
+          prefix: CM_ # 变量前缀，可选
+        volumeMounts:
+        - name: conf
+          mountPath: /mnt
+        - name: conf2
+          mountPath: /tmp
+        - name: real-conf
+          mountPath: /etc/nginx/nginx.conf  #挂载到容器里面的路径，必须是文件路径，不能是目录路径
+          subPath: nginx.conf  #指定挂载configmap里面的哪个文件，如果不指定，默认挂载整个configmap，必须是文件路径，不能是目录路径

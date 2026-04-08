@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multiple-config
+data:
+  multiple.conf: |-
+    port: 6379
+    bind: 0.0.0.0
+    pass: PASSWORD
+  mysql.conf: |-
+    port: 3306
