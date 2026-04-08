@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-with-auth
+  namespace: study-ingress
+  annotations:
+    # 基础认证提示语（修复换行错误，增加引号）
+    nginx.ingress.kubernetes.io/auth-realm: "Please Input Your Username and Password"
+    # 基础认证密钥
+    nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    nginx.ingress.kubernetes.io/auth-type: basic
+    # IP白名单（仅允许该IP访问）
+    nginx.ingress.kubernetes.io/whitelist-source-range: 192.168.181.141
+spec:
+  # 替代废弃的 ingress.class 注解（K8s 1.22+ 标准写法）
+  ingressClassName: nginx
+  rules:
+    - host: auth.test.com
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80

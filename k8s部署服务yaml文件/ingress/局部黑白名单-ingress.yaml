@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-with-auth
+  namespace: study-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/auth-realm: "Please Input Your Username and Password"
+    nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/denylist-source-range: 192.168.181.134
+    # 黑名单示例：10.0.0.0/24,172.10.0.1
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: auth.test.com
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80

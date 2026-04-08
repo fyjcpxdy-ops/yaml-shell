@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-with-auth
+  namespace: study-ingress
+  annotations:
+    # 认证提示语（换行文字合并，引号包裹）
+    nginx.ingress.kubernetes.io/auth-realm: "Please Input Your Username and Password"
+    # 认证密钥
+    nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    # 认证类型
+    nginx.ingress.kubernetes.io/auth-type: basic
+    # 并发连接限制
+    nginx.ingress.kubernetes.io/limit-connections: "1"、
+    #限制每秒的连接，单个 IP：
+    #nginx.ingress.kubernetes.io/limit-rps
+    #限制每分钟的连接，单个 IP：
+    #nginx.ingress.kubernetes.io/limit-rpm
+    #限制客户端每秒传输的字节数，单位为 K，需要开启 proxy-buffering：
+    #nginx.ingress.kubernetes.io/limit-rate
+    #速率限制白名单
+    #nginx.ingress.kubernetes.io/limit-whitelist
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: auth.test.com
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80
