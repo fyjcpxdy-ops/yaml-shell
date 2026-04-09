@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: emptydir
+  name: emptydir
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: emptydir
+  template:
+    metadata:
+      labels:
+        app: emptydir
+    spec:
+      containers:
+      - image: registry.cn-beijing.aliyuncs.com/dotbalo/nginx:1.15.12
+        imagePullPolicy: IfNotPresent
+        name: nginx
+        volumeMounts:
+        - mountPath: /opt
+          name: share-volume
+      - image: registry.cn-beijing.aliyuncs.com/dotbalo/redis:7.2.5
+        imagePullPolicy: IfNotPresent
+        name: redis
+        volumeMounts:   # 挂载卷
+        - mountPath: /mnt  # 挂载路径
+          name: share-volume  # 卷名称
+      volumes:  # 定义卷 
+      - name: share-volume  # 卷名称
+        emptyDir: {}  # 使用 emptyDir 卷类型，表示在 Pod 生命周期内创建一个临时目录，Pod 删除后数据会丢失
