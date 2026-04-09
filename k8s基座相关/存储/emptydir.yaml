@@ -30,4 +30,6 @@ spec:
           name: share-volume  # 卷名称
       volumes:  # 定义卷 
       - name: share-volume  # 卷名称
-        emptyDir: {}  # 使用 emptyDir 卷类型，表示在 Pod 生命周期内创建一个临时目录，Pod 删除后数据会丢失
+        emptyDir:   # 使用 emptyDir 卷类型，表示在 Pod 生命周期内创建一个临时目录，Pod 删除后数据会丢失、   
+          medium: Memory   # 可选项，表示将 emptyDir 卷存储在内存中（tmpfs），默认是存储在节点的磁盘上
+          sizeLimit: 10Mi   # 可选项，表示 emptyDir 卷的最大容量限制，单位可以是 Mi、Gi 等，如果超过限制，Pod 会被杀死并重启。默认没有限制。
