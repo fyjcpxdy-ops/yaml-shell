@@ -25,7 +25,7 @@ spec:
           value: Asia/Shanghai
         - name: LANG
           value: C.UTF-8
-        image: nginx
+        image: registry.cn-beijing.aliyuncs.com/dotbalo/nginx:1.15.12
         imagePullPolicy: IfNotPresent
         name: pvc-test
         volumeMounts:   # 卷挂载

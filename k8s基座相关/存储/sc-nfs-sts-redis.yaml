@@ -1,0 +1,72 @@
+# 1. StatefulSet 强制要求：无头服务（固定Pod域名）
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+spec:
+  selector:
+    app: redis
+  clusterIP: None  # 无头服务核心标识
+  ports:
+    - port: 6379
+      targetPort: 6379
+
+# 2. Redis 双副本 StatefulSet（自动创建独立PVC）
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+spec:
+  replicas: 2
+  serviceName: redis-headless  # 绑定无头服务（必填）
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: redis
+          image: registry.cn-beijing.aliyuncs.com/dotbalo/redis:6.2.5-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp-6379
+              containerPort: 6379
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          # 存活探针（原配置不变）
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 2
+          # 就绪探针（原配置不变）
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 2
+
+  # 3. 自动PVC模板：2个副本 = 自动创建2个独立PVC
+  volumeClaimTemplates:
+  - metadata:
+      name: data  # 必须和 volumeMounts 的 name 对应
+    spec:
+      accessModes: ["ReadWriteMany"]
+      storageClassName: nfs-csi  # 你的NFS存储类
+      resources:
+        requests:
+          storage: 10Gi

@@ -1,0 +1,79 @@
+# MySQL NFS PVC
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-data
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-csi
+
+# MySQL Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      # ✅ Pod 级别配置（正确位置）
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+      # 存储卷
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mysql-data
+      # 容器配置
+      containers:
+        - name: mysql
+          image: registry.cn-beijing.aliyuncs.com/dotbalo/mysql:8.0.20
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp-3306
+              containerPort: 3306
+              protocol: TCP
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: password_123
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql/
+          startupProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 10    # 启动10秒后开始测
+            periodSeconds: 1           # 每5秒测一次
+            failureThreshold: 300       # 最多测30次（150秒），足够MySQL启动
+          # 存活探针
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 2
+          # 就绪探针
+          readinessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 2

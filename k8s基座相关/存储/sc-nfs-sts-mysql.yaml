@@ -1,0 +1,83 @@
+# 1. StatefulSet 强制要求：无头服务（用于Pod网络解析）
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+spec:
+  selector:
+    app: mysql
+  clusterIP: None  # 无头服务核心
+  ports:
+    - port: 3306
+      targetPort: 3306
+
+# 2. MySQL StatefulSet（双副本 + 自动创建PVC）
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  replicas: 2
+  serviceName: mysql-headless
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+
+      containers:
+        - name: mysql
+          image: registry.cn-beijing.aliyuncs.com/dotbalo/mysql:8.0.20
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp-3306
+              containerPort: 3306
+              protocol: TCP
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: password_123
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql/
+          
+          # 探针完全保留
+          startupProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 10
+            periodSeconds: 1
+            failureThreshold: 300
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 2
+          readinessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 2
+
+  # 自动创建PVC模板（2副本=2个独立PVC）
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteMany"]
+      storageClassName: nfs-csi
+      resources:
+        requests:
+          storage: 10Gi
