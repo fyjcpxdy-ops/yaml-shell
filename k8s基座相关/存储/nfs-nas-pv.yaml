@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem  # 卷模式，Filesystem表示文件系统，Block表示块设备
+  accessModes:  # 访问模式
+    - ReadWriteMany   # 访问模式，ReadWriteOnce表示单节点读写，ReadOnlyMany表示多节点只读，ReadWriteMany表示多节点读写
+  persistentVolumeReclaimPolicy: Retain  # 回收策略，Retain表示保留，Delete表示删除，Recycle表示回收（已废弃）
+  storageClassName: nfs-slow   ## 指定存储类，pv和pvc必须一致，通过这个绑定pv和pvc
+  nfs:
+    path: /data/nfs
+    server: 192.168.181.140
+---

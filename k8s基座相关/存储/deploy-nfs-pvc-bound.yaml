@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: pvc-test
+  name: pvc-test
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pvc-test
+  template:
+    metadata:
+      labels:
+        app: pvc-test
+    spec:
+      volumes:  # 卷定义
+      - name: data    
+        persistentVolumeClaim:     # 卷类型为 PersistentVolumeClaim
+          claimName: task-pvc-claim   # 引用 PersistentVolumeClaim 的名称，必须与之前创建的 PVC 名称一致
+      containers:
+      - env:
+        - name: TZ
+          value: Asia/Shanghai
+        - name: LANG
+          value: C.UTF-8
+        image: nginx
+        imagePullPolicy: IfNotPresent
+        name: pvc-test
+        volumeMounts:   # 卷挂载
+        - mountPath: "/usr/share/nginx/html"  # 挂载路径，容器内访问路径
+          name: data  # 卷名称，必须与上面定义的卷名称一致

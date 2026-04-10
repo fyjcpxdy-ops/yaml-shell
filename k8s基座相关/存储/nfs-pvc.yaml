@@ -1,0 +1,11 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: task-pvc-claim  
+spec:
+  storageClassName: nfs-slow   # 指定存储类，pv和pvc必须一致，通过这个绑定pv和pvc
+  accessModes:
+    - ReadWriteMany  # 访问模式，ReadWriteOnce表示单节点读写，ReadOnlyMany表示多节点只读，ReadWriteMany表示多节点读写
+  resources:
+    requests:
+      storage: 3Gi   # 请求的存储大小，必须小于或等于pv中定义的storage
