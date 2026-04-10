@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nfs
+  name: nfs
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nfs
+  template:
+    metadata:
+      labels:
+        app: nfs
+    spec:
+      containers:
+      - image: registry.cn-beijing.aliyuncs.com/dotbalo/nginx:1.15.12
+        imagePullPolicy: IfNotPresent
+        name: nginx
+        volumeMounts:
+        - mountPath: /opt
+          name: nfs-volume
+      - image: registry.cn-beijing.aliyuncs.com/dotbalo/redis:7.2.5
+        imagePullPolicy: IfNotPresent
+        name: redis
+        volumeMounts:
+        - mountPath: /mnt
+          name: nfs-volume
+      volumes:
+      - name: nfs-volume
+        nfs:
+          server: 192.168.2.5
+          path: /data/nfs/testdata
